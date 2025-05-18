@@ -1,0 +1,112 @@
+#+author: Shariff AM Faleel
+#+language: en
+#+TITLE: persp-harpoon
+
+Harpoon-like buffer marks for Emacs perspective/projectile/project
+
+* Contents
+- [[#introduction][Introduction]]
+- [[#screenshots][Screenshots]]
+- [[#installation--setup][Installation / Setup]]
+- [[#usage][Usage]]
+  - [[#core-commands][Core commands]]
+  - [[#configuration][Configuration]]
+  - [[#customization][Customization]]
+- [[#menu-interface][Menu Interface]]
+- [[#integration-with-perspective][Integration with perspective.el]]
+- [[#tips-and-tricks][Tips and Tricks]]
+- [[#contributing][Contributing]]
+- [[#license][License]]
+
+* Introduction
+=persp-harpoon= provides a way to quickly mark, jump to, and manage frequently used buffers/files within any Emacs "perspective" (e.g., different projects).
+Inspired by the [[https://github.com/ThePrimeagen/harpoon][Harpoon plugin for Neovim]], this package allows you to maintain a different buffer list for each perspective, enabling rapid switching and memory of important buffers.
+
+Functionally this is very similar to the amazing [[https://github.com/otavioschwanck/harpoon.el][harpoon.el]]. I needed to be able to manage harpoons by perspectives and not projects. I started writing this as a learning exercise which ballooned into it's own thing. The major difference between =harpoon.el= and =persp-harpoon= is that =persp-harpoon= allows configuring how to separate groups of buffers or harpoons (by configuring =persp-harpoon-current-persp-name-function= and =persp-harpoon-current-persp-buffers-list-function= or using =persp-harpoon-configure=). It was originally written with [[https://github.com/nex3/perspective-el][perspective]] in mind, hence the name.
+
+* Installation / Setup
+
+=persp-harpoon= can be installed from MELPA, straight.el, quelpa, or directly from source.
+
+Example using ~use-package~ and ~straight~:
+#+begin_src emacs-lisp
+  (use-package persp-harpoon
+    ;; If using straight
+    :straight (persp-harpoon :type git :host github :repo "ahmed-shariff/persp-harpoon")
+    ;; If using quelpa
+    :quelpa (persp-harpoon :fetcher github :repo "ahmed-shariff/persp-harpoon")
+    :bind (("C-c h <return>" . persp-harpoon-add-buffer)
+           ("C-c h r"        . persp-harpoon-remove-buffer)
+           ;; Displays a buffer which can be used to re-order the harpoons
+           ("C-c h m"        . persp-harpoon-show-list)
+           ("C-c h c"        . persp-harpoon-clear-buffers)
+           ("C-c h o"        . persp-harpoon-switch-other)
+           ("C-c h k"        . persp-harpoon-kill-non-harpoon-buffers)
+           ("C-c h 1"        . persp-harpoon-jump-to-1)
+           ("C-c h 2"        . persp-harpoon-jump-to-2)
+           ("C-c h 3"        . persp-harpoon-jump-to-3)
+           ("C-c h 4"        . persp-harpoon-jump-to-4)
+           ("C-c h 5"        . persp-harpoon-jump-to-5)
+           ("C-c h 6"        . persp-harpoon-jump-to-6)
+           ("C-c h 7"        . persp-harpoon-jump-to-7)
+           ("C-c h 8"        . persp-harpoon-jump-to-8)
+           ("C-c h 9"        . persp-harpoon-jump-to-9)
+           ;; Select the buffer to jump to with completing-read.
+           ;; Will also show the index next to the buffer name
+           ("C-c h h"        . persp-harpoon-switch-to))
+    :config
+    ;; Setup if using perspective.el:
+    (persp-harpoon-configure-for-perspective))
+#+end_src
+
+* Usage
+
+** Core commands
+
+The main actions for working with persp-harpoon:
+
+- ~persp-harpoon-add-buffer~ :: Add current buffer's file to harpoon list.
+- ~persp-harpoon-remove-buffer~ :: Remove current buffer from harpoon list.
+- ~persp-harpoon-clear-buffers~ :: Clear all harpooned buffers for this perspective.
+- ~persp-harpoon-jump-to-N~ (N = 1..9) :: Jump to buffer assigned to slot N.
+- ~persp-harpoon-switch-to~ :: Interactive completion to switch to any harpooned buffer.
+- ~persp-harpoon-show-list~ :: Open buffer for interactive menu/editing of harpoon buffers.
+- ~persp-harpoon-switch-other~ :: Jump to next buffer in harpoon list.
+- ~persp-harpoon-kill-non-harpoon-buffers~ :: Kill all buffers not in harpoon for current perspective.
+
+** Configuration
+
+To use ~persp-harpoon~, you need to provide functions telling it how to get your "current perspective" and the list of buffers for that perspective.
+"perspective" in persp-harpoon can be anything - from persepctive.el, projectile, project, etc.
+
+ See [[#customization][Customization]] for the customizable variables.
+
+Optionally, one could use the =persp-harpoon-configure= function:
+- ~persp-harpoon-configure (CURRENT-PERSP-NAME-FUNCTION CURRENT-PERSP-BUFFERS-LIST-FUNCTION)~ Configure persp-harpoon. =CURRENT-PERSP-NAME-FUNCTION= should be a function returning the current perspective name. =CURRENT-PERSP-BUFFERS-LIST-FUNCTION= should be a function returning the list of buffers in the current perspective.
+#+begin_src emacs-lisp
+  (persp-harpoon-configure
+    #'my-persp-name-fn         ;; function returning current perspective name
+    #'my-persp-buffers-list-fn ;; function returning buffer list for perspective
+  )
+#+end_src
+
+=persp-harpoon= comes with the function =persp-harpoon-configure-for-perspective=, which configures persp-harpoon to work with perspective.el. In addition to setting the above customizable variables, it also adds additional hooks to =persp-switch-hook=, and =persp-mode-hook=.
+
+** Customization
+
+Customize group: ~persp-harpoon~
+
+Key customizable variables:
+- ~persp-harpoon-current-persp-name-function~ :: A function that returns the name of the current perspective.  This is used to identify which hapoon list should be used. Can also be configured using =persp-harpoon-configure=.
+- ~persp-harpoon-current-persp-buffers-list-function~ :: A function that returns the list of buffers or buffer-names in the current perspective. Can also be configured using =persp-harpoon-configure=
+
+* Menu Interface
+
+The interactive menu buffer (~persp-harpoon-show-list~) allows you to:
+ - reorder harpoon entries
+ - assign indices
+ - add/remove buffers from harpoon
+ - save changes or abort
+
+Navigation and keybindings are shown in the header line.
+
