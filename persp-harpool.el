@@ -27,6 +27,26 @@
 
 ;;; Code:
 
+;;; User options
+(defgroup persp-harpoon nil
+  "Customization for `persp-harpoon'."
+  :link '(url-link "https://github.com/ahmed-shariff/persp-harpoon"))
+
+(defcustom persp-harpoon-current-persp-name-function nil
+  "A function that returns the name of the current perspective.  This
+is used to identify which hapoon list should be used. Can also be
+configured using `persp-harpoon-configure'"
+  :group 'persp-harpoon
+  :type 'function)
+
+(defcustom persp-harpoon-current-persp-buffers-list-function nil
+  "A function that returns the list of buffers or buffer-names
+in the current perspective. Can also be configured using
+`persp-harpoon-configure'"
+  :group 'prsp-harpoon
+  :type 'function)
+
+;;; Variables
 (defvar persp-harpoon--cache-file "~/.emacs.d/.cache/perspective-harpoon.json")
 (defvar persp-harpoon--buffers nil)
 (defvar persp-harpoon--buffers-list nil)
@@ -43,18 +63,28 @@
     (define-key map (kbd "C-c C-c") #'persp-harpoon--show-end-process)
     map))
 
-;;; User options
-
 ;;; Main functions of harpoon
 ;;;###autoload
 (defun persp-harpoon-save ()
   "Save the current state of the harpoons."
   (let ((hashtable (persp-harpoon-load)))
-    (puthash (persp-current-name)
+    (puthash (persp-harpoon--current-persp-name)
              (map-into persp-harpoon--buffers 'hash-table)
              hashtable)
     (with-temp-file persp-harpoon--cache-file
       (json-insert hashtable))))
+
+(defun persp-harpoon--current-persp-name ()
+  "Wrapper for `persp-harpoon-current-persp-name-function'. Errors if not set."
+  (unless persp-harpoon-current-persp-name-function
+    (user-error "`persp-harpoon-current-persp-name-function' is not set."))
+  (funcall persp-harpoon-current-persp-name-function))
+
+(defun persp-harpoon--current-persp-buffers-list ()
+  "Wrapper for `persp-harpoon-current-persp-buffers-list-function'. Errors if not set."
+  (unless persp-harpoon--persp-buffers-list-function
+    (user-error "`persp-harpoon-current-persp-buffers-list-function' is not set."))
+  (funcall persp-harpoon-current-persp-buffers-list-function))
 
 ;;;###autoload
 (defun persp-harpoon-load (&optional persp-name)
@@ -117,7 +147,7 @@ Removes from the list and re-saves state."
 
 Prompts for confirmation."
   (interactive)
-  (when (y-or-n-p (format "Clear harpoon (%s)?" (persp-current-name)))
+  (when (y-or-n-p (format "Clear harpoon (%s)?" (persp-harpoon--current-persp-name)))
     (setq persp-harpoon--buffers '())
     (setq persp-harpoon--buffers-list nil)
     (persp-harpoon-save)))
@@ -194,7 +224,7 @@ present. Meant to be used with `buffer-list-update-hook'."
 
 (defun persp-harpoon-on-switch (&rest _)
   "Refresh harpoon buffer lists when switching perspectives."
-  (setq persp-harpoon--buffers (or (persp-harpoon-load (persp-current-name))
+  (setq persp-harpoon--buffers (or (persp-harpoon-load (persp-harpoon--current-persp-name))
                                   '()))
   (setq persp-harpoon--buffers-list (mapcar (lambda (el) (car el)) persp-harpoon--buffers)))
 
@@ -212,7 +242,7 @@ Presents a completion menu with annotated indices and buffer names."
      (cdr
       (assoc
        (completing-read
-        (format "Switch to harpoon (%s):" (persp-current-name))
+        (format "Switch to harpoon (%s):" (persp-harpoon--current-persp-name))
         (lambda (string pred action)
           (cond
            ((eq action 'metadata)
@@ -285,8 +315,8 @@ If ANNOTATE-INDEX is non-nil, each entry is (string . buffer-name) where string 
   (interactive)
   (when (y-or-n-p "Kill buffers not in harpoon? ")
     (let ((killed 0))
-      (dolist (b (persp-current-buffers))
-        (let ((-buffer-file-name (buffer-file-name b)))
+      (dolist (b (persp-harpoon--current-persp-buffers-list))
+        (let ((-buffer-file-name (buffer-file-name (get-buffer b))))
           (when (or (null -buffer-file-name)
                     (not (member (file-truename -buffer-file-name) persp-harpoon--buffers-list)))
             (cl-incf killed)
@@ -356,7 +386,7 @@ Automatically assigns the lowest available index."
                                       (delq nil
                                        (mapcar (lambda (buf)
                                                  (buffer-file-name (get-buffer buf)))
-                                               (funcall persp-harpoon-show--buffer-list-fn)))))
+                                               (persp-harpoon--current-persp-buffers-list)))))
           (new-order (-min (-difference (number-sequence 1 9) (hash-table-values persp-harpoon-show--current-hashtable)))))
       (puthash new-entry new-order persp-harpoon-show--current-hashtable)
       (persp-harpoon-show--redisplay-lines))))
@@ -402,9 +432,29 @@ Removes entries marked for deletion or with no assigned index."
 ;;; Setup and related helper functions
 (add-hook 'buffer-list-update-hook #'persp-harpoon-on-buffer-switch)
 
-(add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
-(add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
-(persp-make-variable-persp-local 'persp-harpoon--buffers)
+;;;###autoload
+(defun persp-harpoon-configure (current-persp-name-function current-persp-buffers-list-function)
+  "Configure persp-harpoon.
+
+CURRENT-PERSP-NAME-FUNCTION should be a function returning the current
+perspective name. (see also `persp-harpoon-current-persp-name-function')
+CURRENT-PERSP-BUFFERS-LIST-FUNCTION should be a function returning the
+list of buffers in the current perspective.
+(see also `persp-harpoon-current-persp-buffers-list-function')"
+  (when current-persp-name-function
+    (setf persp-harpoon-current-persp-name-function current-persp-name-function))
+  (when current-persp-buffers-list-function
+    (setf persp-harpoon-current-persp-buffers-list-function current-persp-buffers-list-function)))
+
+;;;###autoload
+(defun persp-harpoon-configure-for-perspective ()
+  "Configure `persp-harpoon' to work with `perspective' mode."
+  (unless (featurep 'perspective)
+    (require 'perspective))
+  (add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
+  (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
+  (persp-make-variable-persp-local 'persp-harpoon--buffers)
+  (persp-harpoon-configure #'persp-current-name #'persp-current-buffers))
 
 (provide 'persp-harpoon)
 
