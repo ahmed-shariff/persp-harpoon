@@ -56,7 +56,10 @@ Example using ~use-package~ and ~straight~:
            ("C-c h h"        . persp-harpoon-switch-to))
     :config
     ;; Setup if using perspective.el:
-    (persp-harpoon-configure-for-perspective))
+    (persp-harpoon-configure-for-perspective)
+    ;; OR
+    ;; Setup if using projectile
+    (persp-harpoon-configure-for-projectile))
 #+end_src
 
 * Usage
@@ -90,7 +93,7 @@ Optionally, one could use the =persp-harpoon-configure= function:
   )
 #+end_src
 
-=persp-harpoon= comes with the function =persp-harpoon-configure-for-perspective=, which configures persp-harpoon to work with perspective.el. In addition to setting the above customizable variables, it also adds additional hooks to =persp-switch-hook=, and =persp-mode-hook=.
+=persp-harpoon= comes with the functions =persp-harpoon-configure-for-perspective= and =persp-harpoon-configure-for-projectile=, which configures persp-harpoon to work with ~perspective.el~ and ~projectile~ respectively. In addition to setting the above customizable variables, it also adds additional hooks ( =persp-switch-hook=, and =persp-mode-hook= in perspective.el and =projectile-after-switch-project-hook= and =projectile-mode-hook= in projectile). See the documentation of these functions for more details.
 
 ** Customization
 

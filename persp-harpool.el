@@ -448,14 +448,39 @@ list of buffers in the current perspective.
     (setf persp-harpoon-current-persp-buffers-list-function current-persp-buffers-list-function)))
 
 ;;;###autoload
-(defun persp-harpoon-configure-for-perspective ()
-  "Configure `persp-harpoon' to work with `perspective' mode."
-  (unless (featurep 'perspective)
-    (require 'perspective))
-  (add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
-  (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
-  (persp-make-variable-persp-local 'persp-harpoon--buffers)
-  (persp-harpoon-configure #'persp-current-name (lambda () (persp-current-buffers))))
+(defun persp-harpoon-configure-for-perspective (&optional unset)
+  "Configure `persp-harpoon' to work with `perspective' mode.
+
+If UNSET is non-nil, then remove hooks and reset persp-harpoon vars."
+  (if unset
+      (progn
+        (remove-hook 'persp-switch-hook #'persp-harpoon-on-switch)
+        (remove-hook 'persp-mode-hook #'persp-harpoon-on-switch)
+        (setf persp-harpoon-current-persp-name-function nil
+              persp-harpoon-current-persp-buffers-list-function nil))
+    (unless (featurep 'perspective)
+      (require 'perspective))
+    (add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
+    (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
+    (persp-make-variable-persp-local 'persp-harpoon--buffers)
+    (persp-harpoon-configure #'persp-current-name (lambda () (persp-current-buffers)))))
+
+;;;###autoload
+(defun persp-harpoon-configure-for-projectile (&optional unset)
+  "Configure `persp-harpoon' to work with `projectile' mode.
+
+If UNSET is non-nil, then remove hooks and reset persp-harpoon vars."
+  (if unset
+      (progn
+        (remove-hook 'projectile-after-switch-project-hook #'persp-harpoon-on-switch)
+        (remove-hook 'persp-mode-hook #'persp-harpoon-on-switch)
+        (setf persp-harpoon-current-persp-name-function nil
+              persp-harpoon-current-persp-buffers-list-function nil))
+    (unless (featurep 'projectile)
+      (require 'projectile))
+    (add-hook 'projectile-after-switch-project-hook #'persp-harpoon-on-switch)
+    (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
+    (persp-harpoon-configure #'projectile-project-name #'projectile-project-buffers)))
 
 (provide 'persp-harpoon)
 
