@@ -110,3 +110,8 @@ The interactive menu buffer (~persp-harpoon-show-list~) allows you to:
 
 Navigation and keybindings are shown in the header line.
 
+[[images/persp-harpoon-menu.gif]]
+
+In the above example, the =.emacs= buffer is being removed from the harpoon list and the other two buffers are reindexed. When applying changes any buffer who's index is "?" or "d" will be removed.
+
+
