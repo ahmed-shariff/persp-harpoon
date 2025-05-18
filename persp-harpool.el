@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Shariff AM Faleel
 
 ;; Author: Shariff AM Faleel
-;; Package-Requires: ((emacs "29.1"))
+;; Package-Requires: ((emacs "29.1") (dash "2.0"))
 ;; Version: 0.1-pre
 ;; Homepage: https://github.com/ahmed-shariff/persp-harpoon
 ;; SPDX-License-Identifier: GPL-3.0-or-later
@@ -82,7 +82,7 @@ in the current perspective. Can also be configured using
 
 (defun persp-harpoon--current-persp-buffers-list ()
   "Wrapper for `persp-harpoon-current-persp-buffers-list-function'. Errors if not set."
-  (unless persp-harpoon--persp-buffers-list-function
+  (unless persp-harpoon-current-persp-buffers-list-function
     (user-error "`persp-harpoon-current-persp-buffers-list-function' is not set."))
   (funcall persp-harpoon-current-persp-buffers-list-function))
 
@@ -335,9 +335,10 @@ deleting entries interactively."
   (setq header-line-format
         (substitute-command-keys
          (concat
-          "Quit (burry-buffer): \\[quit-window] When done \\[persp-harpoon--show-end-process];  "
-          "Delete entry: \\[persp-harpoon--show-mark-delete]; Set new index: \\[persp-harpoon--show-set-index]; Add new entry: \\[persp-harpoon--show-add];  "
-          "Previous line: \\[previous-line]; Next line: \\[next-line];")))
+          "Quit: \\[quit-window], Apply changes \\[persp-harpoon--show-end-process], "
+          "Delete entry: \\[persp-harpoon--show-mark-delete], Set new index for entry: \\[persp-harpoon--show-set-index], "
+          "Add new entry: \\[persp-harpoon--show-add], "
+          "Previous line: \\[previous-line], Next line: \\[next-line]")))
   (buffer-disable-undo))
 
 ;;;###autoload
@@ -422,7 +423,7 @@ Removes entries marked for deletion or with no assigned index."
          (push (concat
                 (propertize (format "%s  " order) 'face 'bold 'order order 'fname fname 'keymap persp-harpoon-mode-map)
                 (propertize
-                 (format (format "%%%ds" name-col-length) fname)
+                 (format (format "%%-%ds" name-col-length) fname)
                  'order order 'fname fname 'keymap persp-harpoon-mode-map))
                lines))
        persp-harpoon-show--current-hashtable)
@@ -454,7 +455,7 @@ list of buffers in the current perspective.
   (add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
   (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
   (persp-make-variable-persp-local 'persp-harpoon--buffers)
-  (persp-harpoon-configure #'persp-current-name #'persp-current-buffers))
+  (persp-harpoon-configure #'persp-current-name (lambda () (persp-current-buffers))))
 
 (provide 'persp-harpoon)
 
