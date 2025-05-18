@@ -26,6 +26,7 @@
 ;; vim (by ThePrimeagen).
 
 ;;; Code:
+(require 'dash)
 
 ;;; User options
 (defgroup persp-harpoon nil
@@ -51,7 +52,6 @@ Can also be configured using `persp-harpoon-configure'"
 (defvar persp-harpoon--cache-file (expand-file-name ".cache/perspective-harpoon.json" user-emacs-directory))
 (defvar persp-harpoon--buffers nil)
 (defvar persp-harpoon--buffers-list nil)
-(defvar persp-harpoon-show--buffer-list-fn #'persp-get-buffer-names)
 (defvar-local persp-harpoon-show--current-hashtable nil)
 
 (defvar persp-harpoon-mode-map
@@ -101,7 +101,7 @@ otherwise returns the entire hash table of harpoons."
         (save-buffer))))
   (let ((hashtable (or (ignore-error 'json-error
                          (with-temp-buffer
-                           (insert-file-literally persp-harpoon--cache-file)
+                           (insert-file-contents-literally persp-harpoon--cache-file)
                            (json-parse-string (buffer-string))))
                        (make-hash-table))))
     (if persp-name
@@ -127,8 +127,7 @@ otherwise returns the entire hash table of harpoons."
 Reports an error if not a file buffer."
   (interactive)
   (if-let (b (buffer-file-name))
-      (let ((buffer-full-name (file-truename b)))
-        (persp-harpoon--add-file-to-top (buffer-file-name))
+      (prog1 (persp-harpoon--add-file-to-top (file-truename b))
         (persp-harpoon-save))
     (user-error "Buffer not a file")))
 
@@ -161,9 +160,9 @@ Prompts for confirmation."
 Moves the newly visited file buffer to the top of the harpoon order if
 present.  Meant to be used with `buffer-list-update-hook'."
   (when-let* ((b (buffer-file-name))
-              (buffer-full-name (file-truename b))
-              (_ (member buffer-full-name persp-harpoon--buffers-list)))
-    (persp-harpoon--add-file-to-top (buffer-file-name))))
+              (buffer-full-name (file-truename b)))
+    (when (member buffer-full-name persp-harpoon--buffers-list)
+      (persp-harpoon--add-file-to-top (buffer-file-name)))))
 
 (defun persp-harpoon-jump-to-index (index)
   "Jump to the buffer with harpoon INDEX in the current perspective."
@@ -284,20 +283,19 @@ Presents a completion menu with annotated indices and buffer names."
        annotated-buffers)))))
 
 (defun persp-harpoon--get-buffers-for-completion (&optional annotate-index)
-  "Return buffer names list suitable for `completing-read' from harpoon.
-If ANNOTATE-INDEX is non-nil, each entry is (string . buffer_name) where string contains the harpoon index."
-  (let ((buffers (mapcar (lambda (b)
-                           (let ((-b (buffer-name (find-file-noselect b))))
-                             (if annotate-index
-                                 (cons (format "%s %s"
-                                               (if-let ((idx (assoc b persp-harpoon--buffers)))
-                                                   (cdr idx) " ")
-                                               -b)
-                                       -b)
-                               -b)))
-                         persp-harpoon--buffers-list))
-        (-buffer-name (file-truename (buffer-name))))
-    buffers))
+  "Return buffer names list suitable for `completing-read'.
+If ANNOTATE-INDEX is non-nil, each entry is (string . buffer_name)
+where string contains the harpoon index."
+  (mapcar (lambda (b)
+            (let ((-b (buffer-name (find-file-noselect b))))
+              (if annotate-index
+                  (cons (format "%s %s"
+                                (if-let ((idx (assoc b persp-harpoon--buffers)))
+                                    (cdr idx) " ")
+                                -b)
+                        -b)
+                -b)))
+          persp-harpoon--buffers-list))
 
 ;;;###autoload
 (defun persp-harpoon-switch-other ()
@@ -375,8 +373,7 @@ clash."
   (interactive)
   (when (derived-mode-p 'persp-harpoon-mode)
     (beginning-of-line)
-    (let ((new-index (string-to-number (char-to-string (read-char "Enter new index[0-9]:"))))
-          existing-entry)
+    (let ((new-index (string-to-number (char-to-string (read-char "Enter new index[0-9]:")))))
       (maphash (lambda (fname order)
                  (when (and (numberp order) (= order new-index))
                    (puthash fname "?" persp-harpoon-show--current-hashtable)))
@@ -423,7 +420,7 @@ marked for deletion or with no assigned index."
     (let ((inhibit-read-only t)
           (name-col-length 0)
           lines)
-      (maphash (lambda (k v) (let ((len (length k)))
+      (maphash (lambda (k _) (let ((len (length k)))
                                (when (< name-col-length len)
                                  (setq name-col-length len))))
                persp-harpoon-show--current-hashtable)
@@ -456,6 +453,12 @@ list of buffers in the current perspective.  (see also
     (setf persp-harpoon-current-persp-name-function current-persp-name-function))
   (when current-persp-buffers-list-function
     (setf persp-harpoon-current-persp-buffers-list-function current-persp-buffers-list-function)))
+
+(declare-function persp-current-name nil)
+(declare-function persp-current-buffers nil)
+(declare-function persp-make-variable-persp-local nil)
+(declare-function projectile-project-name nil)
+(declare-function projectile-project-buffers nil)
 
 ;;;###autoload
 (defun persp-harpoon-configure-for-perspective (&optional unset)
