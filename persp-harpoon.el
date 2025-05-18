@@ -492,6 +492,6 @@ If UNSET is non-nil, then remove hooks and reset persp-harpoon vars."
     (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
     (persp-harpoon-configure #'projectile-project-name #'projectile-project-buffers)))
 
-(provide 'persp-harpool)
+(provide 'persp-harpoon)
 
-;;; persp-harpool.el ends here
+;;; persp-harpoon.el ends here
