@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Shariff AM Faleel
 
 ;; Author: Shariff AM Faleel
-;; Package-Requires: ((emacs "28") (org-roam "2.2.0") (s "1.12.0") (magit-section "3.3.0") (transient "0.4") (org-super-agenda "1.2") (dash "2.0"))
+;; Package-Requires: ((emacs "29.1"))
 ;; Version: 0.1-pre
 ;; Homepage: https://github.com/ahmed-shariff/persp-harpoon
 ;; SPDX-License-Identifier: GPL-3.0-or-later
@@ -22,44 +22,53 @@
 
 ;;; Commentary:
 
-;; This is a harpoon implementation that is inspired by harpoon for vim (by ThePrimeagen).
+;; This is a harpoon implementation that is inspired by harpoon for
+;; vim (by ThePrimeagen).
 
 ;;; Code:
 
-(defvar persp-harpoon-cache-file "~/.emacs.d/.cache/perspective-harpoon.json")
-(defvar persp-harpoon-buffers nil)
-(defvar persp-harpoon-buffers-list nil)
-(defvar persp-harpoon-show-buffer-list-fn #'persp-get-buffer-names)
+(defvar persp-harpoon--cache-file "~/.emacs.d/.cache/perspective-harpoon.json")
+(defvar persp-harpoon--buffers nil)
+(defvar persp-harpoon--buffers-list nil)
+(defvar persp-harpoon-show--buffer-list-fn #'persp-get-buffer-names)
+(defvar-local persp-harpoon-show--current-hashtable nil)
 
-(persp-make-variable-persp-local 'persp-harpoon-buffers)
+(defvar persp-harpoon-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "d" #'persp-harpoon--show-mark-delete)
+    (define-key map "s" #'persp-harpoon--show-set-index)
+    (define-key map "a" #'persp-harpoon--show-add)
+    (define-key map "k" #'previous-line)
+    (define-key map "j" #'next-line)
+    (define-key map (kbd "C-c C-c") #'persp-harpoon--show-end-process)
+    map))
 
-(defun persp-harpoon-save (&optional persp-name buffer-table)
-  "Save the current state of the harpoons.
-HASHTABLEs keys are names of perspectives. values are lists of file-names."
+;;; User options
+
+;;; Main functions of harpoon
+;;;###autoload
+(defun persp-harpoon-save ()
+  "Save the current state of the harpoons."
   (let ((hashtable (persp-harpoon-load)))
-    (puthash (or persp-name
-                 (persp-current-name))
-             (or buffer-table
-                 (map-into persp-harpoon-buffers 'hash-table))
+    (puthash (persp-current-name)
+             (map-into persp-harpoon--buffers 'hash-table)
              hashtable)
-    ;; (with-temp-buffer
-    ;;   (json-insert hashtable)
-    ;;   (set-visited-file-name persp-harpoon-cache-file t)
-    ;;   (let (message-log-max)
-    ;;     (save-buffer)))))
-    (with-temp-file persp-harpoon-cache-file
+    (with-temp-file persp-harpoon--cache-file
       (json-insert hashtable))))
 
+;;;###autoload
 (defun persp-harpoon-load (&optional persp-name)
-  "Get the stored persp-harpoon state as a hashtable."
-  (unless (file-exists-p persp-harpoon-cache-file)
+  "Get the stored persp-harpoon state as a hashtable.
+If PERSP-NAME is provided, returns an alist of (file-name . index),
+otherwise returns the entire hash table of harpoons."
+  (unless (file-exists-p persp-harpoon--cache-file)
     (with-temp-buffer
-      (set-visited-file-name persp-harpoon-cache-file t)
+      (set-visited-file-name persp-harpoon--cache-file t)
       (let (message-log-max)
         (save-buffer))))
   (let ((hashtable (or (ignore-error 'json-error
                          (with-temp-buffer
-                           (insert-file-literally persp-harpoon-cache-file)
+                           (insert-file-literally persp-harpoon--cache-file)
                            (json-parse-string (buffer-string))))
                        (make-hash-table))))
     (if persp-name
@@ -68,17 +77,21 @@ HASHTABLEs keys are names of perspectives. values are lists of file-names."
       hashtable)))
 
 (defun persp-harpoon--add-file-to-top (buffer-full-name)
-  (unless persp-harpoon-buffers
-    (setq persp-harpoon-buffers '()))
-  (unless (assoc buffer-full-name persp-harpoon-buffers)
+  "Add BUFFER-FULL-NAME to the top of the harpoon buffer list."
+  (unless persp-harpoon--buffers
+    (setq persp-harpoon--buffers '()))
+  (unless (assoc buffer-full-name persp-harpoon--buffers)
     (push (cons buffer-full-name (--first
-                                  (not (rassoc it persp-harpoon-buffers))
+                                  (not (rassoc it persp-harpoon--buffers))
                                   (number-sequence 1 9)))
-          persp-harpoon-buffers))
-  (setq persp-harpoon-buffers-list (delete buffer-full-name persp-harpoon-buffers-list))
-  (push buffer-full-name persp-harpoon-buffers-list))
+          persp-harpoon--buffers))
+  (setq persp-harpoon--buffers-list (delete buffer-full-name persp-harpoon--buffers-list))
+  (push buffer-full-name persp-harpoon--buffers-list))
 
+;;;###autoload
 (defun persp-harpoon-add-buffer ()
+  "Add current buffer-file to the harpoon list for the current perspective.
+Reports an error if not a file buffer."
   (interactive)
   (if-let (b (buffer-file-name))
       (let ((buffer-full-name (file-truename b)))
@@ -86,47 +99,109 @@ HASHTABLEs keys are names of perspectives. values are lists of file-names."
         (persp-harpoon-save))
     (user-error "buffer not a file")))
 
+;;;###autoload
 (defun persp-harpoon-remove-buffer (&optional buffer)
+  "Remove BUFFER (or current if nil) from the harpoon buffer list.
+Removes from the list and re-saves state."
   (interactive)
   (if-let (b (or buffer (buffer-file-name)))
       (let ((buffer-full-name (file-truename b)))
-        (setq persp-harpoon-buffers (assoc-delete-all buffer-full-name persp-harpoon-buffers))
-        (setq persp-harpoon-buffers-list (delete buffer-full-name persp-harpoon-buffers-list))
+        (setq persp-harpoon--buffers (assoc-delete-all buffer-full-name persp-harpoon--buffers))
+        (setq persp-harpoon--buffers-list (delete buffer-full-name persp-harpoon--buffers-list))
         (persp-harpoon-save))
     (user-error "buffer not a file")))
 
+;;;###autoload
 (defun persp-harpoon-clear-buffers ()
+  "Clear all buffers from the harpoon list for current perspective.
+
+Prompts for confirmation."
   (interactive)
   (when (y-or-n-p (format "Clear harpoon (%s)?" (persp-current-name)))
-    (setq persp-harpoon-buffers '())
-    (setq persp-harpoon-buffers-list nil)
+    (setq persp-harpoon--buffers '())
+    (setq persp-harpoon--buffers-list nil)
     (persp-harpoon-save)))
 
+;;;###autoload
 (defun persp-harpoon-on-buffer-switch (&rest _)
+  "Update harpoon buffer list order after a buffer switch.
+Moves the newly visited file buffer to the top of the harpoon order if
+present. Meant to be used with `buffer-list-update-hook'."
   (when-let* ((b (buffer-file-name))
               (buffer-full-name (file-truename b))
-              (_ (member buffer-full-name persp-harpoon-buffers-list)))
+              (_ (member buffer-full-name persp-harpoon--buffers-list)))
     (persp-harpoon--add-file-to-top (buffer-file-name))))
 
 (defun persp-harpoon-jump-to-index (index)
-  "Jump to the buffer with index INDEX."
-  (if-let ((-buffer (rassoc index persp-harpoon-buffers)))
+  "Jump to the buffer with harpoon INDEX in the current perspective."
+  (if-let ((-buffer (rassoc index persp-harpoon--buffers)))
       (switch-to-buffer (find-file-noselect (car -buffer)))
     (user-error "No buffer for index %s" index)))
 
-(dolist (index (number-sequence 1 9))
-  (fset (intern (format "persp-harpoon-jump-to-%s" index))
-        `(lambda ()
-           ""
-           (interactive)
-           (persp-harpoon-jump-to-index ,index))))
+;;;###autoload
+(defun persp-harpoon-jump-to-1 ()
+  "Jump to the buffer with harpoon index 1 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 1))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-2 ()
+  "Jump to the buffer with harpoon index 2 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 2))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-3 ()
+  "Jump to the buffer with harpoon index 3 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 3))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-4 ()
+  "Jump to the buffer with harpoon index 4 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 4))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-5 ()
+  "Jump to the buffer with harpoon index 5 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 5))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-6 ()
+  "Jump to the buffer with harpoon index 6 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 6))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-7 ()
+  "Jump to the buffer with harpoon index 7 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 7))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-8 ()
+  "Jump to the buffer with harpoon index 8 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 8))
+
+;;;###autoload
+(defun persp-harpoon-jump-to-9 ()
+  "Jump to the buffer with harpoon index 9 in the current perspective."
+  (interactive)
+  (persp-harpoon-jump-to-index 9))
 
 (defun persp-harpoon-on-switch (&rest _)
-  (setq persp-harpoon-buffers (or (persp-harpoon-load (persp-current-name))
+  "Refresh harpoon buffer lists when switching perspectives."
+  (setq persp-harpoon--buffers (or (persp-harpoon-load (persp-current-name))
                                   '()))
-  (setq persp-harpoon-buffers-list (mapcar (lambda (el) (car el)) persp-harpoon-buffers)))
+  (setq persp-harpoon--buffers-list (mapcar (lambda (el) (car el)) persp-harpoon--buffers)))
 
+;;;###autoload
 (defun persp-harpoon-switch-to ()
+  "Prompt and switch to buffer in harpoon list of current perspective.
+Presents a completion menu with annotated indices and buffer names."
   (interactive)
   (let* ((annotated-buffers (persp-harpoon--get-buffers-for-completion t))
          (buffer-annotation-function
@@ -176,91 +251,89 @@ HASHTABLEs keys are names of perspectives. values are lists of file-names."
        annotated-buffers)))))
 
 (defun persp-harpoon--get-buffers-for-completion (&optional annotate-index)
+  "Return buffer names list suitable for `completing-read' from harpoon.
+If ANNOTATE-INDEX is non-nil, each entry is (string . buffer-name) where string contains the harpoon index."
   (let ((buffers (mapcar (lambda (b)
                            (let ((-b (buffer-name (find-file-noselect b))))
                              (if annotate-index
                                  (cons (format "%s %s"
-                                               (if-let ((idx (assoc b persp-harpoon-buffers)))
+                                               (if-let ((idx (assoc b persp-harpoon--buffers)))
                                                    (cdr idx) " ")
                                                -b)
                                        -b)
                                -b)))
-                         persp-harpoon-buffers-list))
+                         persp-harpoon--buffers-list))
         (-buffer-name (file-truename (buffer-name))))
-    ;; (if (and (> (length buffers) 2) (member -buffer-name buffers))
-    ;;     (append (delete -buffer-name buffers) (list -buffer-name))
-    ;;   buffers)))
     buffers))
 
+;;;###autoload
 (defun persp-harpoon-switch-other ()
+  "Switch to the next buffer in harpoon list, or first if not present."
   (interactive)
   (let ((current-buffer-name (file-truename (buffer-file-name))))
     (if (and current-buffer-name
-             (member (file-truename current-buffer-name) persp-harpoon-buffers-list))
-        (if (> 2 (length persp-harpoon-buffers-list))
-            (user-error (format "Only %s buffer(s) in harpoon" (length persp-harpoon-buffers-list)))
-          (persp-harpoon--add-file-to-top (cadr persp-harpoon-buffers-list))
-          (switch-to-buffer (find-file-noselect (car persp-harpoon-buffers-list))))
-      (switch-to-buffer (find-file-noselect (car persp-harpoon-buffers-list))))))
+             (member (file-truename current-buffer-name) persp-harpoon--buffers-list))
+        (if (> 2 (length persp-harpoon--buffers-list))
+            (user-error (format "Only %s buffer(s) in harpoon" (length persp-harpoon--buffers-list)))
+          (persp-harpoon--add-file-to-top (cadr persp-harpoon--buffers-list))
+          (switch-to-buffer (find-file-noselect (car persp-harpoon--buffers-list))))
+      (switch-to-buffer (find-file-noselect (car persp-harpoon--buffers-list))))))
 
+;;;###autoload
 (defun persp-harpoon-kill-non-harpoon-buffers ()
+  "Kill all current perspective buffers not present in the harpoon list."
   (interactive)
   (when (y-or-n-p "Kill buffers not in harpoon? ")
     (let ((killed 0))
       (dolist (b (persp-current-buffers))
         (let ((-buffer-file-name (buffer-file-name b)))
           (when (or (null -buffer-file-name)
-                    (not (member (file-truename -buffer-file-name) persp-harpoon-buffers-list)))
+                    (not (member (file-truename -buffer-file-name) persp-harpoon--buffers-list)))
             (cl-incf killed)
             (kill-buffer b))))
       (message (format "Killed %s buffer(s)." killed)))))
 
-(add-hook 'buffer-list-update-hook #'persp-harpoon-on-buffer-switch)
-(add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
-(add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
-
-(defvar-local persp-harpoon-show--current-hashtable nil)
-
-(defvar persp-harpoon-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "d" #'persp-harpoon-show-mark-delete)
-    (define-key map "s" #'persp-harpoon-show-set-index)
-    (define-key map "a" #'persp-harpoon-show-add)
-    (define-key map "k" #'previous-line)
-    (define-key map "j" #'next-line)
-    (define-key map (kbd "C-c C-c") #'persp-harpoon-show-end-process)
-    map))
-
+;;; Persp-harpoon menu and related functions
+;;;###autoload
 (define-derived-mode persp-harpoon-mode special-mode "persp-harpoon"
-  "Mode used to modify the order/renumber of the files."
+  "Major mode for managing and editing the harpoon buffer list for the
+current perspective. Allows reordering, renumbering, adding or
+deleting entries interactively."
   (setq truncate-lines t)
   (setq buffer-read-only t)
   (setq-local persp-harpoon-show--current-hashtable (make-hash-table))
   (setq header-line-format
         (substitute-command-keys
          (concat
-          "Quit (burry-buffer): \\[quit-window] When done \\[persp-harpoon-show-end-process];  "
-          "Delete entry: \\[persp-harpoon-show-mark-delete]; Set new index: \\[persp-harpoon-show-set-index]; Add new entry: \\[persp-harpoon-show-add];  "
+          "Quit (burry-buffer): \\[quit-window] When done \\[persp-harpoon--show-end-process];  "
+          "Delete entry: \\[persp-harpoon--show-mark-delete]; Set new index: \\[persp-harpoon--show-set-index]; Add new entry: \\[persp-harpoon--show-add];  "
           "Previous line: \\[previous-line]; Next line: \\[next-line];")))
   (buffer-disable-undo))
 
+;;;###autoload
 (defun persp-harpoon-show-list ()
+  "Show special buffer listing harpoon buffers for current perspective.
+Enables interactive manipulation of the order and assignments."
   (interactive)
   (let ((buf (get-buffer-create "*persp-harpoon-list*")))
     (with-current-buffer buf
       (persp-harpoon-mode)
-      (setq persp-harpoon-show--current-hashtable (map-into persp-harpoon-buffers 'hash-table))
+      (setq persp-harpoon-show--current-hashtable (map-into persp-harpoon--buffers 'hash-table))
       (persp-harpoon-show--redisplay-lines))
     (pop-to-buffer buf)))
 
-(defun persp-harpoon-show-mark-delete ()
+(defun persp-harpoon--show-mark-delete ()
+  "In harpoon list mode, mark current entry for deletion."
   (interactive)
   (when (derived-mode-p 'persp-harpoon-mode)
     (beginning-of-line)
     (puthash (get-text-property (point) 'fname) "d" persp-harpoon-show--current-hashtable)
     (persp-harpoon-show--redisplay-lines)))
 
-(defun persp-harpoon-show-set-index ()
+(defun persp-harpoon--show-set-index ()
+  "In harpoon list mode, set a new index for the current buffer entry.
+Prompt for a number, possibly marking other buffers as unassigned if
+there's a clash."
   (interactive)
   (when (derived-mode-p 'persp-harpoon-mode)
     (beginning-of-line)
@@ -273,31 +346,38 @@ HASHTABLEs keys are names of perspectives. values are lists of file-names."
       (puthash (get-text-property (point) 'fname) new-index persp-harpoon-show--current-hashtable)
       (persp-harpoon-show--redisplay-lines))))
 
-(defun persp-harpoon-show-add ()
+(defun persp-harpoon--show-add ()
+  "In harpoon list mode, prompt to add a file buffer to harpoon list.
+Automatically assigns the lowest available index."
   (interactive)
   (when (derived-mode-p 'persp-harpoon-mode)
     (beginning-of-line)
     (let ((new-entry (completing-read "Buffer to add: "
-                                      (-non-nil
-                                       (--map (buffer-file-name (get-buffer it))
-                                              (funcall persp-harpoon-show-buffer-list-fn)))))
+                                      (delq nil
+                                       (mapcar (lambda (buf)
+                                                 (buffer-file-name (get-buffer buf)))
+                                               (funcall persp-harpoon-show--buffer-list-fn)))))
           (new-order (-min (-difference (number-sequence 1 9) (hash-table-values persp-harpoon-show--current-hashtable)))))
       (puthash new-entry new-order persp-harpoon-show--current-hashtable)
       (persp-harpoon-show--redisplay-lines))))
 
-(defun persp-harpoon-show-end-process ()
+(defun persp-harpoon--show-end-process ()
+  "In harpoon list mode, apply the current edits to the harpoon buffer
+  list and save state.
+Removes entries marked for deletion or with no assigned index."
   (interactive)
   (when (derived-mode-p 'persp-harpoon-mode)
     (beginning-of-line)
     (let* ((new-buffer-list (--filter (not (equal "d" (cdr it))) (map-into persp-harpoon-show--current-hashtable 'alist)))
            (all-valid (--all-p (numberp (cdr it)) new-buffer-list)))
       (when (or all-valid (y-or-n-p "There are unassigned entried, remove them?"))
-        (setq persp-harpoon-buffers (--filter (numberp (cdr it)) new-buffer-list))
-        (setq persp-harpoon-buffers-list (-map #'car persp-harpoon-buffers))
+        (setq persp-harpoon--buffers (--filter (numberp (cdr it)) new-buffer-list))
+        (setq persp-harpoon--buffers-list (-map #'car persp-harpoon--buffers))
         (persp-harpoon-save))
       (quit-window))))
 
 (defun persp-harpoon-show--redisplay-lines ()
+  "Re-generate the contents of the harpoon management buffer."
   (when (derived-mode-p 'persp-harpoon-mode)
     (let ((inhibit-read-only t)
           (name-col-length 0)
@@ -318,6 +398,13 @@ HASHTABLEs keys are names of perspectives. values are lists of file-names."
        persp-harpoon-show--current-hashtable)
       (insert (string-join lines "\n"))
       (beginning-of-line))))
+
+;;; Setup and related helper functions
+(add-hook 'buffer-list-update-hook #'persp-harpoon-on-buffer-switch)
+
+(add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
+(add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
+(persp-make-variable-persp-local 'persp-harpoon--buffers)
 
 (provide 'persp-harpoon)
 
