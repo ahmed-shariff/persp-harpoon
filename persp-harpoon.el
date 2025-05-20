@@ -46,16 +46,56 @@ be configured using `persp-harpoon-configure'"
 (defcustom persp-harpoon-current-persp-buffers-list-function nil
   "A function that returns the list of buffers or buffer-names.
 Can also be configured using `persp-harpoon-configure'"
-  :group 'prsp-harpoon
+  :group 'persp-harpoon
   :type 'function)
 
+(defcustom persp-harpoon-mode-prefix-key nil
+  "Prefix key to activate persp-harpoon-map."
+  :group 'persp-harpoon
+  :set (lambda (sym value)
+         (when (and (bound-and-true-p persp-harpoon-mode-map)
+                    (bound-and-true-p persp-harpoon-map))
+           (substitute-key-definition 'persp-harpoon-map nil persp-harpoon-mode-map)
+           (when value
+             (define-key persp-harpoon-mode-map value 'persp-harpoon-map)))
+         (set-default sym value))
+  :type '(choice (const :tag "None" nil)
+                 key-sequence))
+
 ;;; Variables
-(defvar persp-harpoon--cache-file (expand-file-name ".cache/perspective-harpoon.json" user-emacs-directory))
+(defvar persp-harpoon--cache-file (expand-file-name ".cache/pers-harpoon.json" user-emacs-directory))
 (defvar persp-harpoon--buffers nil)
 (defvar persp-harpoon--buffers-list nil)
 (defvar-local persp-harpoon-show--current-hashtable nil)
 
-(defvar persp-harpoon-mode-map
+(defvar persp-harpoon-map nil
+  "Keymap for `persp-harpoon-mode'.")
+
+(defvar persp-harpoon-mode-map (make-sparse-keymap)
+  "Prefix keymap for `persp-harpoon-mode'.")
+
+(define-prefix-command 'persp-harpoon-map)
+(when persp-harpoon-mode-prefix-key
+  (define-key persp-harpoon-mode-map persp-harpoon-mode-prefix-key 'persp-harpoon-map))
+
+(define-key persp-harpoon-map (kbd "<return>") #'persp-harpoon-add-buffer)
+(define-key persp-harpoon-map (kbd "r") #'persp-harpoon-remove-buffer)
+(define-key persp-harpoon-map (kbd "m") #'persp-harpoon-show-list)
+(define-key persp-harpoon-map (kbd "c") #'persp-harpoon-clear-buffers)
+(define-key persp-harpoon-map (kbd "o") #'persp-harpoon-switch-other)
+(define-key persp-harpoon-map (kbd "k") #'persp-harpoon-kill-non-harpoon-buffers)
+(define-key persp-harpoon-map (kbd "1") #'persp-harpoon-jump-to-1)
+(define-key persp-harpoon-map (kbd "2") #'persp-harpoon-jump-to-2)
+(define-key persp-harpoon-map (kbd "3") #'persp-harpoon-jump-to-3)
+(define-key persp-harpoon-map (kbd "4") #'persp-harpoon-jump-to-4)
+(define-key persp-harpoon-map (kbd "5") #'persp-harpoon-jump-to-5)
+(define-key persp-harpoon-map (kbd "6") #'persp-harpoon-jump-to-6)
+(define-key persp-harpoon-map (kbd "7") #'persp-harpoon-jump-to-7)
+(define-key persp-harpoon-map (kbd "8") #'persp-harpoon-jump-to-8)
+(define-key persp-harpoon-map (kbd "9") #'persp-harpoon-jump-to-9)
+(define-key persp-harpoon-map (kbd "h") #'persp-harpoon-switch-to)
+
+(defvar persp-harpoon-menu-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "d" #'persp-harpoon--show-mark-delete)
     (define-key map "s" #'persp-harpoon--show-set-index)
@@ -63,7 +103,8 @@ Can also be configured using `persp-harpoon-configure'"
     (define-key map "k" #'previous-line)
     (define-key map "j" #'next-line)
     (define-key map (kbd "C-c C-c") #'persp-harpoon--show-end-process)
-    map))
+    map)
+  "Keymap for `persp-harpoon-menu-mode'")
 
 ;;; Main functions of harpoon
 ;;;###autoload
@@ -327,7 +368,7 @@ where string contains the harpoon index."
 
 ;;; Persp-harpoon menu and related functions
 ;;;###autoload
-(define-derived-mode persp-harpoon-mode special-mode "persp-harpoon"
+(define-derived-mode persp-harpoon-menu-mode special-mode "persp-harpoon"
   "Major mode for managing and editing the harpoon buffer list.
 This will be the currect perspective.  Allows reordering, renumbering,
 adding or deleting entries interactively."
@@ -350,7 +391,7 @@ Enables interactive manipulation of the order and assignments."
   (interactive)
   (let ((buf (get-buffer-create "*persp-harpoon-list*")))
     (with-current-buffer buf
-      (persp-harpoon-mode)
+      (persp-harpoon-menu-mode)
       (setq persp-harpoon-show--current-hashtable (map-into persp-harpoon--buffers 'hash-table))
       (persp-harpoon-show--redisplay-lines))
     (pop-to-buffer buf)))
@@ -360,7 +401,7 @@ Enables interactive manipulation of the order and assignments."
 
 This is meant to be sued in the harpoon buffer list."
   (interactive)
-  (when (derived-mode-p 'persp-harpoon-mode)
+  (when (derived-mode-p 'persp-harpoon-menu-mode)
     (beginning-of-line)
     (puthash (get-text-property (point) 'fname) "d" persp-harpoon-show--current-hashtable)
     (persp-harpoon-show--redisplay-lines)))
@@ -372,7 +413,7 @@ This is meant to be sued in the harpoon buffer list.  Prompt for a
 number, possibly marking other buffers as unassigned if there's a
 clash."
   (interactive)
-  (when (derived-mode-p 'persp-harpoon-mode)
+  (when (derived-mode-p 'persp-harpoon-menu-mode)
     (beginning-of-line)
     (let ((new-index (string-to-number (char-to-string (read-char "Enter new index[0-9]:")))))
       (maphash (lambda (fname order)
@@ -388,7 +429,7 @@ clash."
 This is meant to be sued in the harpoon buffer list.  Automatically
 assigns the lowest available index."
   (interactive)
-  (when (derived-mode-p 'persp-harpoon-mode)
+  (when (derived-mode-p 'persp-harpoon-menu-mode)
     (beginning-of-line)
     (let ((new-entry (completing-read "Buffer to add: "
                                       (delq nil
@@ -406,7 +447,7 @@ assigns the lowest available index."
 This is meant to be sued in the harpoon buffer list.  Removes entries
 marked for deletion or with no assigned index."
   (interactive)
-  (when (derived-mode-p 'persp-harpoon-mode)
+  (when (derived-mode-p 'persp-harpoon-menu-mode)
     (beginning-of-line)
     (let* ((new-buffer-list (--filter (not (equal "d" (cdr it))) (map-into persp-harpoon-show--current-hashtable 'alist)))
            (all-valid (--all-p (numberp (cdr it)) new-buffer-list)))
@@ -418,7 +459,7 @@ marked for deletion or with no assigned index."
 
 (defun persp-harpoon-show--redisplay-lines ()
   "Re-generate the contents of the harpoon management buffer."
-  (when (derived-mode-p 'persp-harpoon-mode)
+  (when (derived-mode-p 'persp-harpoon-menu-mode)
     (let ((inhibit-read-only t)
           (name-col-length 0)
           lines)
@@ -430,17 +471,25 @@ marked for deletion or with no assigned index."
       (maphash
        (lambda (fname order)
          (push (concat
-                (propertize (format "%s  " order) 'face 'bold 'order order 'fname fname 'keymap persp-harpoon-mode-map)
+                (propertize (format "%s  " order) 'face 'bold 'order order 'fname fname 'keymap persp-harpoon-menu-mode-map)
                 (propertize
                  (format (format "%%-%ds" name-col-length) fname)
-                 'order order 'fname fname 'keymap persp-harpoon-mode-map))
+                 'order order 'fname fname 'keymap persp-harpoon-menu-mode-map))
                lines))
        persp-harpoon-show--current-hashtable)
       (insert (string-join lines "\n"))
       (beginning-of-line))))
 
-;;; Setup and related helper functions
-(add-hook 'buffer-list-update-hook #'persp-harpoon-on-buffer-switch)
+;;; persp-harpoon-menu-mode and related helper functions
+(define-minor-mode persp-harpoon-mode
+  "Toggle persp-harpoon mode.
+When active will track the buffers and update what
+`persp-harpoon-switch-other' should do."
+  :global t
+  :keymap persp-harpoon-mode-map
+  (if persp-harpoon-mode
+      (add-hook 'buffer-list-update-hook #'persp-harpoon-on-buffer-switch)
+    (remove-hook 'buffer-list-update-hook #'persp-harpoon-on-buffer-switch)))
 
 ;;;###autoload
 (defun persp-harpoon-configure (current-persp-name-function current-persp-buffers-list-function)
