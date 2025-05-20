@@ -27,6 +27,7 @@
 
 ;;; Code:
 (require 'dash)
+(require 'map)
 
 ;;; User options
 (defgroup persp-harpoon nil
@@ -99,7 +100,7 @@ otherwise returns the entire hash table of harpoons."
       (set-visited-file-name persp-harpoon--cache-file t)
       (let (message-log-max)
         (save-buffer))))
-  (let ((hashtable (or (ignore-error 'json-error
+  (let ((hashtable (or (ignore-error json-error
                          (with-temp-buffer
                            (insert-file-contents-literally persp-harpoon--cache-file)
                            (json-parse-string (buffer-string))))
@@ -305,7 +306,7 @@ where string contains the harpoon index."
     (if (and current-buffer-name
              (member (file-truename current-buffer-name) persp-harpoon--buffers-list))
         (if (> 2 (length persp-harpoon--buffers-list))
-            (user-error (format "Only %s buffer(s) in harpoon" (length persp-harpoon--buffers-list)))
+            (user-error "Only %s buffer(s) in harpoon" (length persp-harpoon--buffers-list))
           (persp-harpoon--add-file-to-top (cadr persp-harpoon--buffers-list))
           (switch-to-buffer (find-file-noselect (car persp-harpoon--buffers-list))))
       (switch-to-buffer (find-file-noselect (car persp-harpoon--buffers-list))))))
@@ -322,7 +323,7 @@ where string contains the harpoon index."
                     (not (member (file-truename -buffer-file-name) persp-harpoon--buffers-list)))
             (cl-incf killed)
             (kill-buffer b))))
-      (message (format "Killed %s buffer(s)." killed)))))
+      (message "Killed %s buffer(s)." killed))))
 
 ;;; Persp-harpoon menu and related functions
 ;;;###autoload
@@ -394,7 +395,8 @@ assigns the lowest available index."
                                        (mapcar (lambda (buf)
                                                  (buffer-file-name (get-buffer buf)))
                                                (persp-harpoon--current-persp-buffers-list)))))
-          (new-order (-min (-difference (number-sequence 1 9) (hash-table-values persp-harpoon-show--current-hashtable)))))
+          (new-order (-min (-difference (number-sequence 1 9)
+                                        (map-keys persp-harpoon-show--current-hashtable)))))
       (puthash new-entry new-order persp-harpoon-show--current-hashtable)
       (persp-harpoon-show--redisplay-lines))))
 
@@ -476,7 +478,7 @@ If UNSET is non-nil, then remove hooks and reset persp-harpoon vars."
     (add-hook 'persp-switch-hook #'persp-harpoon-on-switch)
     (add-hook 'persp-mode-hook #'persp-harpoon-on-switch)
     (persp-make-variable-persp-local 'persp-harpoon--buffers)
-    (persp-harpoon-configure #'persp-current-name (lambda () (persp-current-buffers)))))
+    (persp-harpoon-configure #'persp-current-name (lambda () (persp-buffers (persp-curr))))))
 
 ;;;###autoload
 (defun persp-harpoon-configure-for-projectile (&optional unset)
