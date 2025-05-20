@@ -35,26 +35,12 @@ Example using ~use-package~ and ~straight~:
     :straight (persp-harpoon :type git :host github :repo "ahmed-shariff/persp-harpoon")
     ;; If using quelpa
     :quelpa (persp-harpoon :fetcher github :repo "ahmed-shariff/persp-harpoon")
-    :bind (("C-c h <return>" . persp-harpoon-add-buffer)
-           ("C-c h r"        . persp-harpoon-remove-buffer)
-           ;; Displays a buffer which can be used to re-order the harpoons
-           ("C-c h m"        . persp-harpoon-show-list)
-           ("C-c h c"        . persp-harpoon-clear-buffers)
-           ("C-c h o"        . persp-harpoon-switch-other)
-           ("C-c h k"        . persp-harpoon-kill-non-harpoon-buffers)
-           ("C-c h 1"        . persp-harpoon-jump-to-1)
-           ("C-c h 2"        . persp-harpoon-jump-to-2)
-           ("C-c h 3"        . persp-harpoon-jump-to-3)
-           ("C-c h 4"        . persp-harpoon-jump-to-4)
-           ("C-c h 5"        . persp-harpoon-jump-to-5)
-           ("C-c h 6"        . persp-harpoon-jump-to-6)
-           ("C-c h 7"        . persp-harpoon-jump-to-7)
-           ("C-c h 8"        . persp-harpoon-jump-to-8)
-           ("C-c h 9"        . persp-harpoon-jump-to-9)
-           ;; Select the buffer to jump to with completing-read.
-           ;; Will also show the index next to the buffer name
-           ("C-c h h"        . persp-harpoon-switch-to))
+
+    :custom
+    (persp-harpoon-mode-prefix-key (kbd "C-c h"))
     :config
+    (persp-harpoon-mode t)
+
     ;; Setup if using perspective.el:
     (persp-harpoon-configure-for-perspective)
     ;; OR
@@ -63,19 +49,29 @@ Example using ~use-package~ and ~straight~:
 #+end_src
 
 * Usage
+** Keybindings and core commands
+This is with the =persp-harpoon-mode-prefix-key= set to =C-c h=. The individual keybindings can be modified in =persp-harpoon-map=.
 
-** Core commands
+| Keybinding | Command                                | Description                              |
+|------------+----------------------------------------+------------------------------------------|
+| C-c h RET  | persp-harpoon-add-buffer               | Add current buffer to Harpoon            |
+| C-c h r    | persp-harpoon-remove-buffer            | Remove buffer from Harpoon               |
+| C-c h m    | persp-harpoon-show-list                | Show Harpoon buffer list                 |
+| C-c h c    | persp-harpoon-clear-buffers            | Clear Harpoon buffer list                |
+| C-c h o    | persp-harpoon-switch-other             | Switch to Harpoon buffer in other window |
+| C-c h k    | persp-harpoon-kill-non-harpoon-buffers | Kill non-Harpoon buffers                 |
+| C-c h 1    | persp-harpoon-jump-to-1                | Jump to 1st Harpoon buffer               |
+| C-c h 2    | persp-harpoon-jump-to-2                | Jump to 2nd Harpoon buffer               |
+| C-c h 3    | persp-harpoon-jump-to-3                | Jump to 3rd Harpoon buffer               |
+| C-c h 4    | persp-harpoon-jump-to-4                | Jump to 4th Harpoon buffer               |
+| C-c h 5    | persp-harpoon-jump-to-5                | Jump to 5th Harpoon buffer               |
+| C-c h 6    | persp-harpoon-jump-to-6                | Jump to 6th Harpoon buffer               |
+| C-c h 7    | persp-harpoon-jump-to-7                | Jump to 7th Harpoon buffer               |
+| C-c h 8    | persp-harpoon-jump-to-8                | Jump to 8th Harpoon buffer               |
+| C-c h 9    | persp-harpoon-jump-to-9                | Jump to 9th Harpoon buffer               |
+| C-c h h    | persp-harpoon-switch-to                | Choose and switch to Harpoon buffer      |
 
-The main actions for working with persp-harpoon:
-
-- ~persp-harpoon-add-buffer~ :: Add current buffer's file to harpoon list.
-- ~persp-harpoon-remove-buffer~ :: Remove current buffer from harpoon list.
-- ~persp-harpoon-clear-buffers~ :: Clear all harpooned buffers for this perspective.
-- ~persp-harpoon-jump-to-N~ (N = 1..9) :: Jump to buffer assigned to slot N.
-- ~persp-harpoon-switch-to~ :: Interactive completion to switch to any harpooned buffer.
-- ~persp-harpoon-show-list~ :: Open buffer for interactive menu/editing of harpoon buffers.
-- ~persp-harpoon-switch-other~ :: Jump to next buffer in harpoon list.
-- ~persp-harpoon-kill-non-harpoon-buffers~ :: Kill all buffers not in harpoon for current perspective.
+=persp-harpoon-show-list= displays an interactive buffer to update the harpoons, see [[#menu-interface][Menu Interface]]
 
 ** Configuration
 
@@ -99,9 +95,10 @@ Optionally, one could use the =persp-harpoon-configure= function:
 
 Customize group: ~persp-harpoon~
 
-Key customizable variables:
+Customizable variables:
 - ~persp-harpoon-current-persp-name-function~ :: A function that returns the name of the current perspective.  This is used to identify which hapoon list should be used. Can also be configured using =persp-harpoon-configure=.
 - ~persp-harpoon-current-persp-buffers-list-function~ :: A function that returns the list of buffers or buffer-names in the current perspective. Can also be configured using =persp-harpoon-configure=
+- ~persp-harpoon-mode-prefix-key~ :: Prefix key to activate =persp-harpoon-map=.
 
 * Menu Interface
 
