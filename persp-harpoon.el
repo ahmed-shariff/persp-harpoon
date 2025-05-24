@@ -49,15 +49,15 @@ Can also be configured using `persp-harpoon-configure'"
   :group 'persp-harpoon
   :type 'function)
 
-(defcustom persp-harpoon-mode-prefix-key nil
-  "Prefix key to activate persp-harpoon-map."
+(defcustom persp-harpoon-keymap-prefix-key nil
+  "Prefix key to activate persp-harpoon-keymap."
   :group 'persp-harpoon
   :set (lambda (sym value)
          (when (and (bound-and-true-p persp-harpoon-mode-map)
-                    (bound-and-true-p persp-harpoon-map))
-           (substitute-key-definition 'persp-harpoon-map nil persp-harpoon-mode-map)
+                    (bound-and-true-p persp-harpoon-keymap))
+           (substitute-key-definition 'persp-harpoon-keymap nil persp-harpoon-mode-map)
            (when value
-             (define-key persp-harpoon-mode-map value 'persp-harpoon-map)))
+             (define-key persp-harpoon-mode-map (kbd value) 'persp-harpoon-keymap)))
          (set-default sym value))
   :type '(choice (const :tag "None" nil)
                  key-sequence))
@@ -68,32 +68,35 @@ Can also be configured using `persp-harpoon-configure'"
 (defvar persp-harpoon--buffers-list nil)
 (defvar-local persp-harpoon-show--current-hashtable nil)
 
-(defvar persp-harpoon-map nil
+(defvar persp-harpoon-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "<return>") #'persp-harpoon-add-buffer)
+    (define-key map (kbd "r") #'persp-harpoon-remove-buffer)
+    (define-key map (kbd "m") #'persp-harpoon-show-list)
+    (define-key map (kbd "c") #'persp-harpoon-clear-buffers)
+    (define-key map (kbd "o") #'persp-harpoon-switch-other)
+    (define-key map (kbd "k") #'persp-harpoon-kill-non-harpoon-buffers)
+    (define-key map (kbd "1") #'persp-harpoon-jump-to-1)
+    (define-key map (kbd "2") #'persp-harpoon-jump-to-2)
+    (define-key map (kbd "3") #'persp-harpoon-jump-to-3)
+    (define-key map (kbd "4") #'persp-harpoon-jump-to-4)
+    (define-key map (kbd "5") #'persp-harpoon-jump-to-5)
+    (define-key map (kbd "6") #'persp-harpoon-jump-to-6)
+    (define-key map (kbd "7") #'persp-harpoon-jump-to-7)
+    (define-key map (kbd "8") #'persp-harpoon-jump-to-8)
+    (define-key map (kbd "9") #'persp-harpoon-jump-to-9)
+    (define-key map (kbd "h") #'persp-harpoon-switch-to)
+    map)
+  "Sub keymap for `persp-harpoon-mode'.
+Will be triggered by `persp-harpoon-keymap-prefix-key' when
+`persp-harpoon-mode' is active.")
+
+(defvar persp-harpoon-mode-map
+  (let ((map (make-sparse-keymap)))
+    (when persp-harpoon-keymap-prefix-key
+      (define-key map (kbd persp-harpoon-keymap-prefix-key) persp-harpoon-keymap))
+    map)
   "Keymap for `persp-harpoon-mode'.")
-
-(defvar persp-harpoon-mode-map (make-sparse-keymap)
-  "Prefix keymap for `persp-harpoon-mode'.")
-
-(define-prefix-command 'persp-harpoon-map)
-(when persp-harpoon-mode-prefix-key
-  (define-key persp-harpoon-mode-map persp-harpoon-mode-prefix-key 'persp-harpoon-map))
-
-(define-key persp-harpoon-map (kbd "<return>") #'persp-harpoon-add-buffer)
-(define-key persp-harpoon-map (kbd "r") #'persp-harpoon-remove-buffer)
-(define-key persp-harpoon-map (kbd "m") #'persp-harpoon-show-list)
-(define-key persp-harpoon-map (kbd "c") #'persp-harpoon-clear-buffers)
-(define-key persp-harpoon-map (kbd "o") #'persp-harpoon-switch-other)
-(define-key persp-harpoon-map (kbd "k") #'persp-harpoon-kill-non-harpoon-buffers)
-(define-key persp-harpoon-map (kbd "1") #'persp-harpoon-jump-to-1)
-(define-key persp-harpoon-map (kbd "2") #'persp-harpoon-jump-to-2)
-(define-key persp-harpoon-map (kbd "3") #'persp-harpoon-jump-to-3)
-(define-key persp-harpoon-map (kbd "4") #'persp-harpoon-jump-to-4)
-(define-key persp-harpoon-map (kbd "5") #'persp-harpoon-jump-to-5)
-(define-key persp-harpoon-map (kbd "6") #'persp-harpoon-jump-to-6)
-(define-key persp-harpoon-map (kbd "7") #'persp-harpoon-jump-to-7)
-(define-key persp-harpoon-map (kbd "8") #'persp-harpoon-jump-to-8)
-(define-key persp-harpoon-map (kbd "9") #'persp-harpoon-jump-to-9)
-(define-key persp-harpoon-map (kbd "h") #'persp-harpoon-switch-to)
 
 (defvar persp-harpoon-menu-mode-map
   (let ((map (make-sparse-keymap)))
