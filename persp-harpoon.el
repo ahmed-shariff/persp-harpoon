@@ -107,7 +107,7 @@ Will be triggered by `persp-harpoon-keymap-prefix-key' when
     (define-key map "j" #'next-line)
     (define-key map (kbd "C-c C-c") #'persp-harpoon--show-end-process)
     map)
-  "Keymap for `persp-harpoon-menu-mode'")
+  "Keymap for `persp-harpoon-menu-mode'.")
 
 ;;; Main functions of harpoon
 ;;;###autoload
@@ -484,6 +484,7 @@ marked for deletion or with no assigned index."
       (beginning-of-line))))
 
 ;;; persp-harpoon-menu-mode and related helper functions
+;;;###autoload
 (define-minor-mode persp-harpoon-mode
   "Toggle persp-harpoon mode.
 When active will track the buffers and update what

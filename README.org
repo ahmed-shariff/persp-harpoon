@@ -37,7 +37,7 @@ Example using ~use-package~ and ~straight~:
     :quelpa (persp-harpoon :fetcher github :repo "ahmed-shariff/persp-harpoon")
 
     :custom
-    (persp-harpoon-mode-prefix-key (kbd "C-c h"))
+    (persp-harpoon-keymap-prefix-key (kbd "C-c h"))
     :config
     (persp-harpoon-mode t)
 
@@ -50,7 +50,7 @@ Example using ~use-package~ and ~straight~:
 
 * Usage
 ** Keybindings and core commands
-This is with the =persp-harpoon-mode-prefix-key= set to =C-c h=. The individual keybindings can be modified in =persp-harpoon-map=.
+This is with the =persp-harpoon-keymap-prefix-key= set to =C-c h=. The individual keybindings can be modified in =persp-harpoon-keymap=.
 
 | Keybinding | Command                                | Description                              |
 |------------+----------------------------------------+------------------------------------------|
@@ -98,7 +98,7 @@ Customize group: ~persp-harpoon~
 Customizable variables:
 - ~persp-harpoon-current-persp-name-function~ :: A function that returns the name of the current perspective.  This is used to identify which hapoon list should be used. Can also be configured using =persp-harpoon-configure=.
 - ~persp-harpoon-current-persp-buffers-list-function~ :: A function that returns the list of buffers or buffer-names in the current perspective. Can also be configured using =persp-harpoon-configure=
-- ~persp-harpoon-mode-prefix-key~ :: Prefix key to activate =persp-harpoon-map=.
+- ~persp-harpoon-keymap-prefix-key~ :: Prefix key to activate =persp-harpoon-keymap= when ~persp-harpoon-mode~ is active.
 
 * Menu Interface
 
