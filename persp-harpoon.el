@@ -510,6 +510,8 @@ list of buffers in the current perspective.  (see also
 
 (declare-function persp-current-name nil)
 (declare-function persp-current-buffers nil)
+(declare-function persp-buffers nil)
+(declare-function persp-curr nil)
 (declare-function persp-make-variable-persp-local nil)
 (declare-function projectile-project-name nil)
 (declare-function projectile-project-buffers nil)
