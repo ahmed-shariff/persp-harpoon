@@ -55,6 +55,10 @@ Can also be configured using `persp-harpoon-configure'"
   :set (lambda (sym value)
          (when (and (bound-and-true-p persp-harpoon-mode-map)
                     (bound-and-true-p persp-harpoon-keymap))
+           ;; KLUDGE: Hacky solution to make `persp-harpoon-keymap' a
+           ;; command without overwriting the map.
+           ;; See also `define-prefix-command'.
+           (fset 'persp-harpoon-keymap persp-harpoon-keymap)
            (substitute-key-definition 'persp-harpoon-keymap nil persp-harpoon-mode-map)
            (when value
              (define-key persp-harpoon-mode-map (kbd value) 'persp-harpoon-keymap)))
@@ -93,6 +97,10 @@ Will be triggered by `persp-harpoon-keymap-prefix-key' when
 
 (defvar persp-harpoon-mode-map
   (let ((map (make-sparse-keymap)))
+    ;; KLUDGE: Hacky solution to make `persp-harpoon-keymap' a
+    ;; command without overwriting the map.
+    ;; See also `define-prefix-command'.
+    (fset 'persp-harpoon-keymap persp-harpoon-keymap)
     (when persp-harpoon-keymap-prefix-key
       (define-key map (kbd persp-harpoon-keymap-prefix-key) persp-harpoon-keymap))
     map)
