@@ -52,7 +52,17 @@ Can also be configured using `persp-harpoon-configure'"
 (defcustom persp-harpoon-keymap-prefix-key nil
   "Prefix key to activate persp-harpoon-keymap."
   :group 'persp-harpoon
-  :set #'persp-harpoon-keymap-prefix-key--setter
+  :set (lambda (sym value)
+         (when (and (bound-and-true-p persp-harpoon-mode-map)
+                    (bound-and-true-p persp-harpoon-keymap))
+           ;; KLUDGE: Hacky solution to make `persp-harpoon-keymap' a
+           ;; command without overwriting the map.
+           ;; See also `define-prefix-command'.
+           (fset 'persp-harpoon-keymap persp-harpoon-keymap)
+           (substitute-key-definition 'persp-harpoon-keymap nil persp-harpoon-mode-map)
+           (when value
+             (define-key persp-harpoon-mode-map (kbd value) 'persp-harpoon-keymap)))
+         (set-default sym value))
   :type '(choice (const :tag "None" nil)
                  key-sequence))
 
@@ -106,19 +116,6 @@ Will be triggered by `persp-harpoon-keymap-prefix-key' when
     (define-key map (kbd "C-c C-c") #'persp-harpoon--show-end-process)
     map)
   "Keymap for `persp-harpoon-menu-mode'.")
-
-(defun persp-harpoon-keymap-prefix-key--setter (sym value)
-  "Setter for `persp-harpoon-keymap-prefix-key'."
-  (when (and (bound-and-true-p persp-harpoon-mode-map)
-             (bound-and-true-p persp-harpoon-keymap))
-    ;; KLUDGE: Hacky solution to make `persp-harpoon-keymap' a
-    ;; command without overwriting the map.
-    ;; See also `define-prefix-command'.
-    (fset 'persp-harpoon-keymap persp-harpoon-keymap)
-    (substitute-key-definition 'persp-harpoon-keymap nil persp-harpoon-mode-map)
-    (when value
-      (define-key persp-harpoon-mode-map (kbd value) 'persp-harpoon-keymap)))
-  (set-default sym value))
 
 ;;; Main functions of harpoon
 ;;;###autoload
