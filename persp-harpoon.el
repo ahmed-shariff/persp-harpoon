@@ -49,6 +49,12 @@ Can also be configured using `persp-harpoon-configure'"
   :group 'persp-harpoon
   :type 'function)
 
+(defcustom persp-harpoon-kill-non-harpoon-buffer-ignore-predicate nil
+  "A function that takes a buffer/buffer-name and return if it should
+be ignored by `persp-harpoon-kill-non-harpoon-buffer'."
+  :group 'persp-harpoon
+  :type 'function)
+
 (defcustom persp-harpoon-keymap-prefix-key nil
   "Prefix key to activate persp-harpoon-keymap."
   :group 'persp-harpoon
@@ -365,14 +371,24 @@ where string contains the harpoon index."
 
 ;;;###autoload
 (defun persp-harpoon-kill-non-harpoon-buffers ()
-  "Kill all current perspective buffers not present in the harpoon list."
+  "Kill buffers in the current perspective that are not in Harpoon.
+
+Buffers are killed their names are:
+1. Rejected by `persp-harpoon-kill-non-harpoon-buffer-ignore-predicate' when that
+filter is non-nil
+2. When they have no associated file, or
+3. Their files are not present in `persp-harpoon--buffers-list'."
   (interactive)
   (when (y-or-n-p "Kill buffers not in harpoon? ")
     (let ((killed 0))
       (dolist (b (persp-harpoon--current-persp-buffers-list))
         (let ((-buffer-file-name (buffer-file-name (get-buffer b))))
-          (when (or (null -buffer-file-name)
-                    (not (member (file-truename -buffer-file-name) persp-harpoon--buffers-list)))
+          (when (and
+                 (not (and persp-harpoon-kill-non-harpoon-buffer-ignore-predicate
+                           (funcall persp-harpoon-kill-non-harpoon-buffer-ignore-predicate b)))
+                 (or (null -buffer-file-name)
+                     (not (member (file-truename -buffer-file-name)
+                                  persp-harpoon--buffers-list))))
             (cl-incf killed)
             (kill-buffer b))))
       (message "Killed %s buffer(s)." killed))))
